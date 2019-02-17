@@ -17,6 +17,8 @@ import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
@@ -24,6 +26,10 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.MatchQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -60,6 +66,7 @@ public class ESClient {
     public CreateIndexResponse createIndex(String indexName) throws Exception {
         return createIndex(indexName, null, null, null);
     }
+
 
     /**
      * 以指定的Setting创建索引
@@ -161,6 +168,7 @@ public class ESClient {
      */
     public boolean existIndex(String IndexName) throws IOException {
         GetIndexRequest request = new GetIndexRequest();
+        request.indices(IndexName);
         boolean exists = client.indices().exists(request, RequestOptions.DEFAULT);
         return exists;
     }
@@ -217,30 +225,6 @@ public class ESClient {
     }
 
     /**
-     * 获得索引下某个类型的某个字段
-     *
-     * @param indexName
-     * @param type
-     * @param field
-     * @return
-     * @throws IOException
-     */
-    public Map<String, Object> getField(String indexName, String type, String field) throws IOException {
-        GetFieldMappingsRequest request = new GetFieldMappingsRequest();
-        request.indices(indexName);
-        request.types(type);
-        request.fields(field);
-
-        GetFieldMappingsResponse response = client.indices().getFieldMapping(request, RequestOptions.DEFAULT);
-        Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>> mappings = response.mappings();
-        final Map<String, GetFieldMappingsResponse.FieldMappingMetaData> typeMappings = mappings.get(indexName).get(type);
-        final GetFieldMappingsResponse.FieldMappingMetaData metaData = typeMappings.get(field);
-        final String fullName = metaData.fullName();
-        final Map<String, Object> source = metaData.sourceAsMap();
-        return source;
-    }
-
-    /**
      *
      * @param indexName  索引名
      * @param type       文档类型
@@ -251,7 +235,12 @@ public class ESClient {
         if (type == null){
             type = data.getClass().getSimpleName();
         }
-        IndexRequest request = new IndexRequest(indexName,type,id);
+        IndexRequest request;
+        if (id == null){
+            request = new IndexRequest(indexName,type);
+        }else {
+            request = new IndexRequest(indexName,type,id);
+        }
         IndexResponse response = null;
         Map<String, Object> jsonData = null;
         try {
@@ -276,8 +265,96 @@ public class ESClient {
         return insertData(indexName,null,data,id);
     }
 
+    public IndexResponse insertData(String indexName,String type,Object data) {
+        return insertData(indexName,type,data,null);
+    }
 
-    public static class ESClientBuilder {
+    /**
+     * 获得索引下某个类型的某个字段
+     *
+     * @param indexName
+     * @param type
+     * @param field
+     * @return
+     * @throws IOException
+     */
+    public Map<String, Object> getField(String indexName, String type, String field) throws IOException {
+        GetFieldMappingsRequest request = new GetFieldMappingsRequest();
+        request.indices(indexName);
+        request.types(type);
+        request.fields(field);
+
+        GetFieldMappingsResponse response = client.indices().getFieldMapping(request, RequestOptions.DEFAULT);
+        Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>> mappings = response.mappings();
+        final Map<String, GetFieldMappingsResponse.FieldMappingMetaData> typeMappings = mappings.get(indexName).get(type);
+        final GetFieldMappingsResponse.FieldMappingMetaData metaData = typeMappings.get(field);
+        final String fullName = metaData.fullName();
+        final Map<String, Object> source = metaData.sourceAsMap();
+        return source;
+    }
+
+    /**
+     * 获取某个文档
+     */
+    public SearchResponse matchSearch(String indexName,String type,String fieldName,Object fieldValue) throws IOException {
+        SearchRequest request = new SearchRequest();
+        request.indices(indexName);
+        request.types(type);
+        SearchSourceBuilder builder = new SearchSourceBuilder();
+        builder.query(QueryBuilders.matchQuery(fieldName,fieldValue));
+        request.source(builder);
+        SearchResponse response =  client.search(request,RequestOptions.DEFAULT);
+        return response;
+    }
+
+    /**
+     *
+     * @param indexName     索引名
+     * @param type          索引类型
+     * @param queryParm     查询参数（有字段类型与字段值组成）
+     * @return
+     */
+    public SearchResponse boolMulitSearchForShould(String indexName,String type,Map<String,Object> queryParm) throws IOException {
+        SearchRequest request = new SearchRequest();
+        request.indices(indexName);
+        request.types(type);
+        SearchSourceBuilder builder = new SearchSourceBuilder();
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+        for (Map.Entry<String,Object> query : queryParm.entrySet()){
+            MatchQueryBuilder matchQueryBuilder = QueryBuilders.matchQuery(query.getKey(), query.getValue());
+            boolQueryBuilder.should(matchQueryBuilder);
+        }
+        builder.query(boolQueryBuilder);
+        request.source(builder);
+        SearchResponse response =  client.search(request,RequestOptions.DEFAULT);
+        return response;
+    }
+
+    public SearchResponse preciseSearch(String indexName,String type,String fieldName,Object fieldValue) throws IOException {
+        SearchRequest request = new SearchRequest();
+        request.indices(indexName);
+        request.types(type);
+        SearchSourceBuilder builder = new SearchSourceBuilder();
+        builder.query(QueryBuilders.termQuery(fieldName, fieldValue));
+        request.source(builder);
+        SearchResponse response =  client.search(request,RequestOptions.DEFAULT);
+        return response;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        public static class ESClientBuilder {
         /**
          * 以给定的节点初始化客户端
          *

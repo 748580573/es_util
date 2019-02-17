@@ -290,4 +290,22 @@ public class ESUtils {
         stack.empty();
     }
 
+    /**
+     * 由映射类型获得es对应的索引名
+     * @param clazz 映射类型
+     * @return
+     */
+    public static String getEsIndexNameFromClazz(Class<?> clazz){
+        return clazz.getSimpleName().toLowerCase();
+    }
+
+    /**
+     * 由映射类型获得es对应的索引类型
+     * @param clazz 映射类型
+     * @return
+     */
+    public static String getEsTypeFromClazz(Class<?> clazz){
+        return clazz.getSimpleName();
+    }
+
 }
