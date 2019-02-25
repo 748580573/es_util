@@ -43,14 +43,8 @@ public class lowTest {
         Map<Object,Object> map = ESUtils.beanToEsData(student);
         System.out.println("hello");*/
 
-        ESClient client = ESClient.ESClientBuilder.init(new HttpHost("106.14.214.199",9200,"http"));
-        Map<String,Object> param = new HashMap<>();
-        param.put("blogTilte", "有赞");
-        param.put("tags", "lalala");
-        SearchResponse response = client.boolMulitSearchForShould(blog.getClass().getSimpleName().toLowerCase(), blog.getClass().getSimpleName(),param);
-        SearchHits hits = response.getHits();
-        long totalHits = hits.getTotalHits();
-        System.out.println(response);
+        ESClient client = ESClient.ESClientBuilder.init(new HttpHost("localhost",9200,"http"));
+        System.out.println(client.deleteIndex("aaa"));
 //        client.createIndex(blog.getClass().getSimpleName().toLowerCase(),blog.getClass().getSimpleName() , Blog.class);
 //        client.insertData("bbb","test",blog,"1");
         client.close();

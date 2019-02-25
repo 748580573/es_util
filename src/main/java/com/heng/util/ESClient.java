@@ -15,6 +15,8 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
@@ -330,6 +332,42 @@ public class ESClient {
         return response;
     }
 
+    /**
+     *
+     * @param indexName     索引名
+     * @param type          索引类型
+     * @param queryParm     查询参数（有字段类型与字段值组成）
+     * @param pageNo 页号
+     * @param pageSize 每页查询量
+     * @return
+     */
+    public SearchResponse boolMulitSearchForShould(String indexName,String type,Map<String,Object> queryParm,int pageNo,int pageSize) throws IOException {
+        SearchRequest request = new SearchRequest();
+        request.indices(indexName);
+        request.types(type);
+        SearchSourceBuilder builder = new SearchSourceBuilder();
+        builder.from((pageNo - 1) * pageSize);
+        builder.size(pageSize);
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+        for (Map.Entry<String,Object> query : queryParm.entrySet()){
+            MatchQueryBuilder matchQueryBuilder = QueryBuilders.matchQuery(query.getKey(), query.getValue());
+            boolQueryBuilder.should(matchQueryBuilder);
+        }
+        builder.query(boolQueryBuilder);
+        request.source(builder);
+        SearchResponse response =  client.search(request,RequestOptions.DEFAULT);
+        return response;
+    }
+
+    /**
+     * 精确查找
+     * @param indexName
+     * @param type
+     * @param fieldName
+     * @param fieldValue
+     * @return
+     * @throws IOException
+     */
     public SearchResponse preciseSearch(String indexName,String type,String fieldName,Object fieldValue) throws IOException {
         SearchRequest request = new SearchRequest();
         request.indices(indexName);
@@ -341,20 +379,20 @@ public class ESClient {
         return response;
     }
 
+    /***
+     * 删除索引下类型中指定id的文档
+     * @param indexName
+     * @param type
+     * @param id
+     * @return
+     */
+    public DeleteResponse deleteDocument(String indexName,String type,String id) throws IOException {
+        DeleteRequest request = new DeleteRequest(indexName,type,id);
+        DeleteResponse deleteResponse = client.delete(request, RequestOptions.DEFAULT);
+        return deleteResponse;
+    }
 
-
-
-
-
-
-
-
-
-
-
-
-
-        public static class ESClientBuilder {
+    public static class ESClientBuilder {
         /**
          * 以给定的节点初始化客户端
          *
