@@ -44,7 +44,8 @@ public class lowTest {
         System.out.println("hello");*/
 
         ESClient client = ESClient.ESClientBuilder.init(new HttpHost("localhost",9200,"http"));
-        System.out.println(client.deleteIndex("aaa"));
+        SearchResponse response = client.preciseSearch("blog", "Blog", "blogCode", "8ca28c7c22b54bbf443da0f4f2071ef6");
+        System.out.println(response.getHits().totalHits);
 //        client.createIndex(blog.getClass().getSimpleName().toLowerCase(),blog.getClass().getSimpleName() , Blog.class);
 //        client.insertData("bbb","test",blog,"1");
         client.close();
