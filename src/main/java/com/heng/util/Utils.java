@@ -44,6 +44,15 @@ public class Utils {
         return null;
     }
 
+    public static <T> T jsonToObject(String json,Class<T> clazz){
+        try {
+            return mapper.readValue(json, clazz);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public static Map objectToMap(Object object) {
         String json = objcetToJson(object);
         Map map = null;

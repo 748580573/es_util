@@ -3,11 +3,11 @@ package com.heng.util;
 import org.elasticsearch.rest.RestStatus;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-public abstract class ESClientAbstract {
-
+public interface ESClient {
     /**
      * 关闭客户端
      *
@@ -43,7 +43,7 @@ public abstract class ESClientAbstract {
      * @throws ExecutionException
      * @throws InterruptedException
      */
-    public abstract RestStatus update(String indexName,String type,String id, Map<String,Object> fields) throws ExecutionException, InterruptedException;
+    public abstract RestStatus update(String indexName,String type,String id, Map<String,Object> fields);
 
 
     public abstract RestStatus delete(String indexName,String type,String id);
@@ -63,24 +63,17 @@ public abstract class ESClientAbstract {
      */
     public abstract Map<String,Object> getDataById(String index, String type, String id);
 
+    public abstract List<String> getDataByShouldQuery(String index,String type,Map<String, Object> search);
 
-    /**
-     * select * from table
-     * 这里table表示es中的类型
-     * 暂不支持复杂查询sql
-     * @这里暂未实现
-     * @param index 索引
-     * @param sql
-     * @return
-     */
-    private Map<String,Object> getDataBySql(String index, String sql){return null;};
-    /**
-     * 是否存在该
-     * @param index
-     * @return
-     */
     public abstract boolean existIndex(String index);
 
     public abstract boolean existType(String index,String type);
 
+    public long getLastUsedTime();
+
+    public void setLastUsedTime(long lastUsedTime);
+
+    public long getCreateTime() ;
+
+    public void setCreateTime(long createTime);
 }

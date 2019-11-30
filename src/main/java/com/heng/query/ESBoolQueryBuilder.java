@@ -30,7 +30,9 @@ public class ESBoolQueryBuilder {
     }
 
     public String getJson(){
-        return Utils.objcetToJson(this.bool);
+        Map<String,Object> map = new HashMap<>();
+        map.put("bool",this.bool);
+        return Utils.objcetToJson(map);
     }
 
     public class ESMustQueryBuilder{

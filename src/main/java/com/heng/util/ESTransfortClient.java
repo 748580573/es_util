@@ -1,6 +1,6 @@
 package com.heng.util;
 
-import com.alibaba.druid.stat.TableStat;
+import com.heng.query.ESBoolQueryBuilder;
 import com.heng.query.ESQueryBuilder;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
@@ -16,7 +16,6 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.WrapperQueryBuilder;
 import org.elasticsearch.rest.RestStatus;
@@ -28,7 +27,11 @@ import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
-public class ESTransfortClient extends ESClientAbstract {
+public class ESTransfortClient implements ESClient {
+
+    private long createTime;
+
+    private long lastUsedTime;
 
     private TransportClient transportClient = null;
 
@@ -105,36 +108,25 @@ public class ESTransfortClient extends ESClientAbstract {
      * @return
      */
     private Map<String, Object> getDataBySql(String index, String sql) {
-        Map<String,Object> query = new HashMap<>();
-        Map<String,Object> match = new HashMap<>();
-        Map<String,Object> term = new HashMap<>();
-        boolean hasMatch = false;
-        boolean hasTerm = false;
-        SQLUtil sqlUtil = SQLUtil.SQLUtilBuilder.build(sql);
-        Set<TableStat.Name> table = sqlUtil.getTable();
-        String type = null;
-        for (TableStat.Name name : table){
-            //获取第一个
-            type = name.getName();
-            break;
-        }
-        if (type != null){
-            List<TableStat.Condition> list = sqlUtil.getConditions();
-            for (TableStat.Condition condition : list){
-                String str = condition.getOperator();
-                switch (str){
-                    case SQLUtil.OperatorType.LIKE:
-                        hasMatch = true;
-                        match.put(condition.getColumn().getName(),condition.getValues().stream().map(e -> e.toString()).reduce((a,b) -> a + " " + b).get());
-                        break;
-                    case SQLUtil.OperatorType.IN:
-                        break;
-                    default:
 
-                }
-            }
-        }
         return null;
+    }
+
+    @Override
+    public List<String> getDataByShouldQuery(String index,String type,Map<String, Object> search) {
+        List<String> result = new ArrayList<>();
+        ESBoolQueryBuilder builder = new ESBoolQueryBuilder();
+        for (Map.Entry<String,Object> entry : search.entrySet()){
+            builder.should().addField(entry.getKey(), entry.getValue());
+        }
+        System.out.println(builder.getJson());
+        WrapperQueryBuilder wqb = QueryBuilders.wrapperQuery(builder.getJson());
+        SearchResponse response = transportClient.prepareSearch(index).setTypes(type).setQuery(wqb).get();
+        for (SearchHit hit : response.getHits()){
+            String json = hit.getSourceAsString();
+            result.add(json);
+        }
+        return result;
     }
 
     public void test(){
@@ -176,9 +168,43 @@ public class ESTransfortClient extends ESClientAbstract {
     }
 
     @Override
+    public long getLastUsedTime() {
+        return this.lastUsedTime;
+    }
+
+    @Override
+    public void setLastUsedTime(long lastUsedTime) {
+        this.lastUsedTime = lastUsedTime;
+    }
+
+    @Override
+    public long getCreateTime() {
+        return this.createTime;
+    }
+
+    @Override
+    public void setCreateTime(long createTime) {
+        this.createTime = createTime;
+    }
+
+    @Override
     public RestStatus delete(String indexName, String type, String id) {
         DeleteResponse response = transportClient.prepareDelete(indexName, type, id).get();
         return response.status();
+    }
+
+    public static Settings getSettings(Map<String,Object> setting){
+        Settings.Builder builder = Settings.builder();
+        for (Map.Entry<String,Object> entry : setting.entrySet()){
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            if (value instanceof  Boolean){
+                builder.put(key, Boolean.valueOf(value.toString()));
+            }else {
+                builder.put(key, value.toString());
+            }
+        }
+        return builder.build();
     }
 
     public static class ESClientBuilder {
@@ -201,6 +227,9 @@ public class ESTransfortClient extends ESClientAbstract {
             String[] hostnames = hostname.split(",");
             for (String str : hostnames){
                 client.transportClient.addTransportAddress(new TransportAddress(InetAddress.getByName(str),port));
+                long time = new Date().getTime();
+                client.setCreateTime(time);
+                client.setLastUsedTime(time);
             }
             return client;
         }
